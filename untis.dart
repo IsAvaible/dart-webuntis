@@ -7,6 +7,7 @@ import 'package:http/io_client.dart';
 import 'package:string_similarity/string_similarity.dart';
 
 
+
 /// Asynchronous Dart wrapper for the WebUntis API.
 /// Initialize a new object by calling the [.init] method.
 ///
@@ -107,7 +108,7 @@ class Session {
     var rawTimetable = await _request(_postify("getTimetable", {
       "id": id, "type": type, "startDate": conv.call(startDate), "endDate": conv.call(endDate)
     }), useCache: useCache);
-
+    
     return _parseTimetable(rawTimetable);
   }
 
@@ -188,8 +189,8 @@ class Session {
     return Schoolyear._(rawSchoolyear["id"], rawSchoolyear["name"], DateTime.parse(rawSchoolyear["startDate"]), DateTime.parse(rawSchoolyear["endDate"]));
   }
 
-  Future<List<Student>> getStudents() async {
-    List<dynamic> rawStudents = await _request(_postify("getStudents", {}));
+  Future<List<Student>> getStudents({bool useCache = true}) async {
+    List<dynamic> rawStudents = await _request(_postify("getStudents", {}), useCache: useCache);
     return _parseStudents(rawStudents);
   }
 
@@ -344,7 +345,7 @@ class DayTime {
 }
 
 class _SearchMatches {
-  List<Student> forenameMatches, surnameMatches;
+  List<Student>? forenameMatches, surnameMatches;
   _SearchMatches._(this.forenameMatches, this.surnameMatches);
 
   @override
@@ -366,6 +367,14 @@ class IdProvider {
   }
 
   factory IdProvider._(int type, int id) {
+    assert (0 < type && type < 6);
+    return IdProvider._withType(_IdProviderTypes.values[type-1], id);
+  }
+
+  /// Returns a custom IdProvider. USE WITH CAUTION.
+  ///
+  /// type: 1 = klasse, 2 = teacher, 3 = subject, 4 = room, 5 = student
+  factory IdProvider.custom(int type, int id) {
     assert (0 < type && type < 6);
     return IdProvider._withType(_IdProviderTypes.values[type-1], id);
   }
