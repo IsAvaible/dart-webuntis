@@ -14,7 +14,7 @@ import 'package:string_similarity/string_similarity.dart';
 /// Almost all methods require the response to be awaited.
 /// Make sure to watch the following video to learn about proper Integration
 /// of asynchronous code into your flutter application:
-/// https://www.youtube.com/watch?v=SmTCmDMi4BY
+/// https://www.youtube.com/watch?v=OTS-ap9_aXc
 ///
 /// Add this to your project dependencies:
 /// ```yaml
@@ -24,9 +24,9 @@ import 'package:string_similarity/string_similarity.dart';
 class Session {
 
   String? _sessionId;
-  late final IdProvider userId, userKlasseId;
+  IdProvider? userId, userKlasseId;
 
-  final String server, school, username, password, userAgent;
+  final String server, school, username, _password, userAgent;
 
   int _requestId = 0;
   late final IOClient _http;
@@ -35,7 +35,7 @@ class Session {
   int cacheLengthMaximum = 20;
   int cacheDisposeTime = 30;
 
-  Session._internal(this.server, this.school, this.username, this.password, this.userAgent) {
+  Session._internal(this.server, this.school, this.username, this._password, this.userAgent) {
     final ioc = HttpClient();
     ioc.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
     _http = new IOClient(ioc);
@@ -43,7 +43,12 @@ class Session {
 
   static Future<Session> init(String server, String school, String username, String password, {String userAgent = "Dart Untis API"}) async {
     Session session = Session._internal(server, school, username, password, userAgent);
-    await session._getSession();
+    await session.login();
+    return session;
+  }
+
+  static Session initNoLogin(String server, String school, String username, String password, {String userAgent = "Dart Untis API"}) {
+    Session session = Session._internal(server, school, username, password, userAgent);
     return session;
   }
 
@@ -72,6 +77,7 @@ class Session {
     if (response.statusCode != 200 || responseBody.containsKey("error")) {
       throw new HttpException(
           "An exception occurred while communicating with the WebUntis API: ${responseBody["error"]}"
+              + ((responseBody["error"]["code"] == -8520) ? "\nYou need to authenticate with .login() first." : "")
       );
     } else {
       var result = responseBody["result"];
@@ -85,8 +91,8 @@ class Session {
     return postBody;
   }
 
-  Future<void> _getSession() async {
-    var result = await _request(_postify("authenticate", {"user": username, "password": password, "client": userAgent}));
+  Future<void> login() async {
+    var result = await _request(_postify("authenticate", {"user": username, "password": _password, "client": userAgent}));
     _sessionId = result["sessionId"] as String;
     if (result.containsKey("personId")) {
       userId = IdProvider._(result["personType"] as int, result["personId"] as int);
@@ -176,8 +182,8 @@ class Session {
   }
 
   Future<Schoolyear> getCurrentSchoolyear({bool useCache = true}) async {
-    List<dynamic> rawSchoolyear = await _request(_postify("getCurrentSchoolyear", {}));
-    return _parseSchoolyear(rawSchoolyear[0]);
+    Map<String, dynamic> rawSchoolyear = await _request(_postify("getCurrentSchoolyear", {}));
+    return _parseSchoolyear(rawSchoolyear);
   }
 
   Future<List<Schoolyear>> getSchoolyears({bool useCache = true}) async {
@@ -185,8 +191,8 @@ class Session {
     return List.generate(rawSchoolyears.length, (year) => _parseSchoolyear(rawSchoolyears[year]));
   }
 
-  Schoolyear _parseSchoolyear(dynamic rawSchoolyear) {
-    return Schoolyear._(rawSchoolyear["id"], rawSchoolyear["name"], DateTime.parse(rawSchoolyear["startDate"]), DateTime.parse(rawSchoolyear["endDate"]));
+  Schoolyear _parseSchoolyear(Map rawSchoolyear) {
+    return Schoolyear._(rawSchoolyear["id"], rawSchoolyear["name"], DateTime.parse(rawSchoolyear["startDate"].toString()), DateTime.parse(rawSchoolyear["endDate"].toString()));
   }
 
   Future<List<Student>> getStudents({bool useCache = true}) async {
@@ -197,7 +203,7 @@ class Session {
   List<Student> _parseStudents(List<dynamic> rawStudents) {
     return List.generate(rawStudents.length, (index) {
       var student = rawStudents[index];
-      return Student(
+      return Student._(
         IdProvider._withType(_IdProviderTypes.STUDENT, student["id"]),
         student.containsKey("key") ? student["key"] ?? null : null,
         student.containsKey("name") ? student["name"] ?? null : null,
@@ -208,8 +214,46 @@ class Session {
     });
   }
 
+  Future<List<Room>> getRooms({bool useCache = true}) async {
+    List<dynamic> rawRooms = await _request(_postify("getRooms", {}), useCache: useCache);
+    return _parseRooms(rawRooms);
+  }
 
-  Future<IdProvider?> searchPerson(String forename, String surname, {bool isTeacher = false, String birthdata = "0"}) async {
+  List<Room> _parseRooms(List<dynamic> rawRooms) {
+    return List.generate(rawRooms.length, (index) {
+      var room = rawRooms[index];
+      return Room._(
+        IdProvider._withType(_IdProviderTypes.ROOM, room["id"]),
+        room.containsKey("name") ? room["name"] ?? null : null,
+        room.containsKey("longName") ? room["longName"] ?? null : null,
+        room.containsKey("foreColor") ? room["foreColor"] ?? null : null,
+        room.containsKey("backColor") ? room["backColor"] ?? null : null,
+      );
+    });
+  }
+
+  Future<List<Klasse>> getKlassen(int schoolyearId, {bool useCache = true}) async {
+    List<dynamic> rawKlassen = await _request(_postify("getKlassen", {"schoolyearId": schoolyearId}), useCache: useCache);
+    return _parseKlassen(rawKlassen, schoolyearId);
+  }
+
+  List<Klasse> _parseKlassen(List<dynamic> rawKlassen, int schoolyearId) {
+    return List.generate(rawKlassen.length, (index) {
+      Map klasse = rawKlassen[index];
+      var teachers = klasse.keys.where((e) => e.startsWith("teacher")).toList();
+      return Klasse._(
+        IdProvider._withType(_IdProviderTypes.KLASSE, klasse["id"]),
+        schoolyearId,
+        klasse.containsKey("name") ? klasse["name"] ?? null : null,
+        klasse.containsKey("longName") ? klasse["longName"] ?? null : null,
+        klasse.containsKey("foreColor") ? klasse["foreColor"] ?? null : null,
+        klasse.containsKey("backColor") ? klasse["backColor"] ?? null : null,
+        List.generate(teachers.length, (i) => IdProvider._withType(_IdProviderTypes.TEACHER, klasse[teachers[i]]))
+      );
+    });
+  }
+
+  Future<IdProvider?> searchPerson(String forename, String surname, bool isTeacher, {String birthdata = "0"}) async {
     int response = await _request(_postify("getPersonId",
         {"type": isTeacher ? 2:5, "sn": surname, "fn": forename, "dob": birthdata}));
     return response == 0 ? null : IdProvider._(isTeacher ? 2:5, response);
@@ -259,13 +303,19 @@ class Session {
   /// Posts a custom request to the WebUntis HTTP Server. USE WITH CAUTION
   ///
   /// For valid values for the [methodeName] and possible [parameters]
-  /// visist the offical documentation https://untis-sr.ch/wp-content/uploads/2019/11/2018-09-20-WebUntis_JSON_RPC_API.pdf
+  /// visit the official documentation https://untis-sr.ch/wp-content/uploads/2019/11/2018-09-20-WebUntis_JSON_RPC_API.pdf
   Future<dynamic> customRequest(String methodeName, Map<String, Object> parameters) async {
     return await _request(_postify(methodeName, parameters));
   }
 
   Future<void> quit() async {
     await _request(_postify("logout", {}));
+    userId = null;
+    userKlasseId = null;
+  }
+
+  Future<void> logout() async {
+    await quit();
   }
 
   void clearCache() {
@@ -284,6 +334,11 @@ class Period {
   Period._(this.id, this.startTime, this.endTime, this.klassenIds, this.teacherIds, this.subjectIds, this.roomIds,
       this.activityType, this.isCancelled, this.code, this.type, this.lessonText, this.statflags);
 
+  @override
+  String toString() => "Period<id:$id, startTime:$startTime, endTime:$endTime, " +
+      "isCancelled:$isCancelled, klassenIds:$klassenIds, teacherIds:$teacherIds, " +
+      "subjectIds:$subjectIds, roomIds:$roomIds, activityType:$activityType, " +
+      "code:$activityType, type:$type, lessonText:$lessonText, statflags:$statflags>";
 }
 
 class Subject {
@@ -291,13 +346,20 @@ class Subject {
   final String name, longName, foreColor, backColor;
 
   Subject._(this.id, this.name, this.longName, this.foreColor, this.backColor);
+
+  @override
+  String toString() => "Subject<id:$id, name:$name, longName:$longName, foreColor:$foreColor, backColor:$backColor>";
 }
 
 class Schoolyear {
-  final String id, name;
+  final int id;
+  final name;
   final DateTime startDate, endDate;
 
   Schoolyear._(this.id, this.name, this.startDate, this.endDate);
+
+  @override
+  String toString() => "Schoolyear<id:$id, name:$name, startDate:$startDate, endDate:$startDate>";
 }
 
 class Timegrid {
@@ -318,10 +380,32 @@ class Student {
   IdProvider id;
   String? key, untisName, foreName, surName, gender;
 
-  Student(this.id, this.key, this.untisName, this.foreName, this.surName, this.gender);
+  Student._(this.id, this.key, this.untisName, this.foreName, this.surName, this.gender);
 
   @override
   String toString() => "Student<${id.toString()}:untisName:$untisName, foreName:$foreName, surName:$surName, gender:$gender, key:$key>";
+}
+
+class Room {
+  IdProvider id;
+  String? name, longName, foreColor, backColor;
+
+  Room._(this.id, this.name, this.longName, this.foreColor, this.backColor);
+
+  @override
+  String toString() => "Room<${id.toString()}:name:$name, longName:$longName, foreColor:$foreColor, backColor:$backColor>";
+}
+
+class Klasse {
+  IdProvider id;
+  int schoolyearId;
+  String? name, longName, foreColor, backColor, did;
+  List<IdProvider> teachers;
+
+  Klasse._(this.id, this.schoolyearId, this.name, this.longName, this.foreColor, this.backColor, this.teachers);
+
+  @override
+  String toString() => "Klasse<${id.toString()}:name:$name, longName:$longName, foreColor:$foreColor, backColor:$backColor, teachers:$teachers>";
 }
 
 class DayTime {
