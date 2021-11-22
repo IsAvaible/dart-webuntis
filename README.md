@@ -1,5 +1,5 @@
 # dart-webuntis
-Asynchrous WebUntis API wrapper written in Dart.
+An asynchrous WebUntis API wrapper written in Dart.
 
 # Usage
 Attention: Each method must be properly awaited in a asynchronous fashinon. This rather annoying circumstance is inherited by the usage of the http package, but should
