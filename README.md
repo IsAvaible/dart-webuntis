@@ -2,10 +2,10 @@
 An asynchrous WebUntis API wrapper written in Dart.
 
 # Usage
-Attention: Each method must be properly awaited in a asynchronous fashinon. This rather annoying circumstance is inherited by the usage of the http package, but should
+Attention: Each method must be properly awaited in an asynchronous fashion. This rather annoying circumstance is inherited by the usage of the http package, but should
 help to design fast & responsive UIs.
 
-Starting of, add these two packages into the dependencies of your pubspec.yaml file:
+Starting off, put [untis.dart](untis.dart) into the lib folder of your project and add these two packages to the dependencies of your pubspec.yaml file:
 ```yaml
 http: ^0.13.4
 string_similarity: ^2.0.0
@@ -36,7 +36,7 @@ students = await getStudents(); // Cached value is being reused to increase perf
 // You can modify the maximum amount of requests stored in cache and the dispose time in minutes, to alter the cache behaviour
 mySession.cacheDisposeTime = 60; // Cached values will now stay available for 60 minutes
 ```
-You want to programm a timetable app? These methods might be usefull.
+You want to program a timetable app? These methods might be useful.
 ```dart
 // Get a timegrid that specifies the period time spans for each day
 Timegrid myTimegrid = await mySession.getTimegrid(); 
@@ -45,8 +45,8 @@ DateTime mostRecentWeekday(DateTime date, int weekday) => DateTime(date.year, da
 DateTime monday = mostRecentWeekday(DateTime.now(), DateTime.monday), friday = mostRecentWeekday(DateTime.now(), DateTime.friday);
 var myTimetable = await mySession.getTimetable(myId, startDate: monday, endDate: friday);
 ```
-If a function you want to use is not implemented by the wrapper yet, you can use the .customRequest method.
-This will return whatever the response of the API was as a JsonDecoded Object. This will be either a Map or a List most of the times.
+If a function you want to use is not implemented by the wrapper yet, you can use the customRequest method.
+This will return whatever the response of the API was as a JsonDecoded Object. This will be either a Map or a List most of the time.
 ```dart
 var teachers = await mySession.customRequest("getTeachers", {});
 // You may use the result with a custom IdProvider or similar
@@ -55,7 +55,6 @@ var teacherIds = teachers.map((teacher) => IdProvider.custom(2, teacher["id"]))
 
 
 # Disclaimer
-Please be aware that this wrapper is extremly bare bones, as I only implemented the methods that I think will be usefull in app development.
-This is in no way a suffisticated approach of properly wraping the cluncky HTTP API provided by WebUntis, but it should do the job.
-If you feel inspired to contribute to this project please do so, as it may help other developers facing the same limitations! 
-
+Please be aware that this wrapper is extremely bare bones, as I only implemented the methods that I think will be useful in app development.
+This is in no way a sophisticated approach of properly wrapping the clunky HTTP API provided by WebUntis, but it should do the job.
+If you feel inspired to contribute to this project, please do so, as it may help other developers facing the same limitations! 
