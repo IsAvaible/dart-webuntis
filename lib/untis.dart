@@ -153,8 +153,7 @@ class Session {
     return List.generate(rawSubjects.length, (index) {
       var subject = rawSubjects[index];
       return Subject._(
-        subject["id"], subject["name"], subject["longName"],
-        subject["frontColor"], subject["frontColor"]);
+        IdProvider._internal(_IdProviderTypes.STUDENT, subject["id"]), subject["name"], subject["longName"], subject["alternateName"]);
     });
   }
 
@@ -346,9 +345,10 @@ class Period {
 
 class Subject {
   final IdProvider id;
-  final String name, longName, foreColor, backColor;
+  final String name, longName, alternateName;
+  final String? foreColor, backColor;
 
-  Subject._(this.id, this.name, this.longName, this.foreColor, this.backColor);
+  Subject._(this.id, this.name, this.longName, this.alternateName, {this.foreColor, this.backColor});
 
   @override
   String toString() => "Subject<id:$id, name:$name, longName:$longName, foreColor:$foreColor, backColor:$backColor>";
