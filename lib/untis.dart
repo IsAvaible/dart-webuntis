@@ -346,12 +346,11 @@ class Period {
 class Subject {
   final IdProvider id;
   final String name, longName, alternateName;
-  final String? foreColor, backColor;
 
-  Subject._(this.id, this.name, this.longName, this.alternateName, {this.foreColor, this.backColor});
+  Subject._(this.id, this.name, this.longName, this.alternateName);
 
   @override
-  String toString() => "Subject<id:$id, name:$name, longName:$longName, foreColor:$foreColor, backColor:$backColor>";
+  String toString() => "Subject<id:$id, name:$name, longName:$longName";
 }
 
 class Schoolyear {
