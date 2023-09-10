@@ -39,7 +39,7 @@ class Session {
     final ioc = HttpClient();
     ioc.badCertificateCallback =
         (X509Certificate cert, String host, int port) => true;
-    _http = new IOClient(ioc);
+    _http = IOClient(ioc);
   }
 
   static Future<Session> init(
@@ -89,11 +89,12 @@ class Session {
     LinkedHashMap<String, dynamic> responseBody = jsonDecode(response.body);
 
     if (response.statusCode != 200 || responseBody.containsKey("error")) {
-      throw new HttpException(
-          "An exception occurred while communicating with the WebUntis API: ${responseBody["error"]}" +
-              ((responseBody["error"]["code"] == -8520)
-                  ? "\nYou need to authenticate with .login() first."
-                  : ""));
+      int untisErrorCode = responseBody["error"]["code"];
+      String untisErrorText = untisErrorCode == -8520
+          ? "\nYou need to authenticate with .login() first."
+          : "";
+      throw HttpException(
+          "An exception occurred while communicating with the WebUntis API: ${responseBody["error"]}$untisErrorText");
     } else {
       var result = responseBody["result"];
       return result;
@@ -120,7 +121,7 @@ class Session {
     }
     if (result.containsKey("klasseId")) {
       userKlasseId = IdProvider._withType(
-          _IdProviderTypes.KLASSE, result["klasseId"] as int);
+          IdProviderTypes.KLASSE, result["klasseId"] as int);
     }
   }
 
@@ -130,17 +131,18 @@ class Session {
 
     startDate = startDate ?? DateTime.now();
     endDate = endDate ?? startDate;
-    if (startDate.compareTo(endDate) == 1)
+    if (startDate.compareTo(endDate) == 1) {
       throw Exception("startDate must be equal to or before the endDate.");
-    var conv = (DateTime dateTime) =>
+    }
+    convYearMonth(DateTime dateTime) =>
         dateTime.toIso8601String().substring(0, 10).replaceAll("-", "");
 
     var rawTimetable = await _request(
         _postify("getTimetable", {
           "id": id,
           "type": type,
-          "startDate": conv.call(startDate),
-          "endDate": conv.call(endDate)
+          "startDate": convYearMonth(startDate),
+          "endDate": convYearMonth(endDate)
         }),
         useCache: useCache);
 
@@ -176,19 +178,19 @@ class Session {
         List.generate(
             period["kl"].length,
             (index) => IdProvider._withType(
-                _IdProviderTypes.KLASSE, period["kl"][index]["id"])),
+                IdProviderTypes.KLASSE, period["kl"][index]["id"])),
         List.generate(
             period["te"].length,
             (index) => IdProvider._withType(
-                _IdProviderTypes.KLASSE, period["te"][index]["id"])),
+                IdProviderTypes.KLASSE, period["te"][index]["id"])),
         List.generate(
             period["su"].length,
             (index) => IdProvider._withType(
-                _IdProviderTypes.KLASSE, period["su"][index]["id"])),
+                IdProviderTypes.KLASSE, period["su"][index]["id"])),
         List.generate(
             period["ro"].length,
             (index) => IdProvider._withType(
-                _IdProviderTypes.KLASSE, period["ro"][index]["id"])),
+                IdProviderTypes.KLASSE, period["ro"][index]["id"])),
         period["activityType"],
         (period["code"] ?? "") == "cancelled",
         period["code"],
@@ -209,24 +211,24 @@ class Session {
     return List.generate(rawSubjects.length, (index) {
       var subject = rawSubjects[index];
       return Subject._(
-          IdProvider._internal(_IdProviderTypes.STUDENT, subject["id"]),
+          IdProvider._internal(IdProviderTypes.STUDENT, subject["id"]),
           subject["name"],
           subject["longName"],
           subject["alternateName"]);
     });
   }
 
-  Future<Timegrid> getTimegrid({bool useCache = true}) async {
-    List<dynamic> rawTimegrid =
+  Future<TimeGrid> getTimeGrid({bool useCache = true}) async {
+    List<dynamic> rawTimeGrid =
         await _request(_postify("getTimegridUnits", {}), useCache: useCache);
-    return _parseTimegrid(rawTimegrid);
+    return _parseTimeGrid(rawTimeGrid);
   }
 
-  Timegrid _parseTimegrid(List<dynamic> rawTimegrid) {
-    return Timegrid._fromList(List.generate(7, (day) {
-      if (rawTimegrid.map((e) => e["day"]).contains(day)) {
+  TimeGrid _parseTimeGrid(List<dynamic> rawTimeGrid) {
+    return TimeGrid._fromList(List.generate(7, (day) {
+      if (rawTimeGrid.map((e) => e["day"]).contains(day)) {
         var dayDict =
-            rawTimegrid.firstWhere((element) => (element["day"] == day));
+            rawTimeGrid.firstWhere((element) => (element["day"] == day));
         List<dynamic> dayData = dayDict["timeUnits"];
 
         List.generate(
@@ -247,25 +249,25 @@ class Session {
     }));
   }
 
-  Future<Schoolyear> getCurrentSchoolyear({bool useCache = true}) async {
-    Map<String, dynamic> rawSchoolyear =
+  Future<SchoolYear> getCurrentSchoolYear({bool useCache = true}) async {
+    Map<String, dynamic> rawSchoolYear =
         await _request(_postify("getCurrentSchoolyear", {}));
-    return _parseSchoolyear(rawSchoolyear);
+    return _parseSchoolYear(rawSchoolYear);
   }
 
-  Future<List<Schoolyear>> getSchoolyears({bool useCache = true}) async {
-    List<dynamic> rawSchoolyears =
+  Future<List<SchoolYear>> getSchoolYears({bool useCache = true}) async {
+    List<dynamic> rawSchoolYears =
         await _request(_postify("getSchoolyears", {}));
-    return List.generate(rawSchoolyears.length,
-        (year) => _parseSchoolyear(rawSchoolyears[year]));
+    return List.generate(rawSchoolYears.length,
+        (year) => _parseSchoolYear(rawSchoolYears[year]));
   }
 
-  Schoolyear _parseSchoolyear(Map rawSchoolyear) {
-    return Schoolyear._(
-        rawSchoolyear["id"],
-        rawSchoolyear["name"],
-        DateTime.parse(rawSchoolyear["startDate"].toString()),
-        DateTime.parse(rawSchoolyear["endDate"].toString()));
+  SchoolYear _parseSchoolYear(Map rawSchoolYear) {
+    return SchoolYear._(
+        rawSchoolYear["id"],
+        rawSchoolYear["name"],
+        DateTime.parse(rawSchoolYear["startDate"].toString()),
+        DateTime.parse(rawSchoolYear["endDate"].toString()));
   }
 
   Future<List<Student>> getStudents({bool useCache = true}) async {
@@ -278,12 +280,12 @@ class Session {
     return List.generate(rawStudents.length, (index) {
       var student = rawStudents[index];
       return Student._(
-        IdProvider._withType(_IdProviderTypes.STUDENT, student["id"]),
-        student.containsKey("key") ? student["key"] ?? null : null,
-        student.containsKey("name") ? student["name"] ?? null : null,
-        student.containsKey("foreName") ? student["foreName"] ?? null : null,
-        student.containsKey("longName") ? student["longName"] ?? null : null,
-        student.containsKey("gender") ? student["gender"] ?? null : null,
+        IdProvider._withType(IdProviderTypes.STUDENT, student["id"]),
+        student.containsKey("key") ? student["key"] : null,
+        student.containsKey("name") ? student["name"] : null,
+        student.containsKey("foreName") ? student["foreName"] : null,
+        student.containsKey("longName") ? student["longName"] : null,
+        student.containsKey("gender") ? student["gender"] : null,
       );
     });
   }
@@ -298,54 +300,54 @@ class Session {
     return List.generate(rawRooms.length, (index) {
       var room = rawRooms[index];
       return Room._(
-        IdProvider._withType(_IdProviderTypes.ROOM, room["id"]),
-        room.containsKey("name") ? room["name"] ?? null : null,
-        room.containsKey("longName") ? room["longName"] ?? null : null,
-        room.containsKey("foreColor") ? room["foreColor"] ?? null : null,
-        room.containsKey("backColor") ? room["backColor"] ?? null : null,
+        IdProvider._withType(IdProviderTypes.ROOM, room["id"]),
+        room.containsKey("name") ? room["name"] : null,
+        room.containsKey("longName") ? room["longName"] : null,
+        room.containsKey("foreColor") ? room["foreColor"] : null,
+        room.containsKey("backColor") ? room["backColor"] : null,
       );
     });
   }
 
-  Future<List<Klasse>> getKlassen(int schoolyearId,
+  Future<List<Klasse>> getKlassen(int schoolYearId,
       {bool useCache = true}) async {
     List<dynamic> rawKlassen = await _request(
-        _postify("getKlassen", {"schoolyearId": schoolyearId}),
+        _postify("getKlassen", {"schoolyearId": schoolYearId}),
         useCache: useCache);
-    return _parseKlassen(rawKlassen, schoolyearId);
+    return _parseKlassen(rawKlassen, schoolYearId);
   }
 
-  List<Klasse> _parseKlassen(List<dynamic> rawKlassen, int schoolyearId) {
+  List<Klasse> _parseKlassen(List<dynamic> rawKlassen, int schoolYearId) {
     return List.generate(rawKlassen.length, (index) {
       Map klasse = rawKlassen[index];
       var teachers = klasse.keys.where((e) => e.startsWith("teacher")).toList();
       return Klasse._(
-          IdProvider._withType(_IdProviderTypes.KLASSE, klasse["id"]),
-          schoolyearId,
-          klasse.containsKey("name") ? klasse["name"] ?? null : null,
-          klasse.containsKey("longName") ? klasse["longName"] ?? null : null,
-          klasse.containsKey("foreColor") ? klasse["foreColor"] ?? null : null,
-          klasse.containsKey("backColor") ? klasse["backColor"] ?? null : null,
+          IdProvider._withType(IdProviderTypes.KLASSE, klasse["id"]),
+          schoolYearId,
+          klasse.containsKey("name") ? klasse["name"] : null,
+          klasse.containsKey("longName") ? klasse["longName"] : null,
+          klasse.containsKey("foreColor") ? klasse["foreColor"] : null,
+          klasse.containsKey("backColor") ? klasse["backColor"] : null,
           List.generate(
               teachers.length,
               (i) => IdProvider._withType(
-                  _IdProviderTypes.TEACHER, klasse[teachers[i]])));
+                  IdProviderTypes.TEACHER, klasse[teachers[i]])));
     });
   }
 
   Future<IdProvider?> searchPerson(
       String forename, String surname, bool isTeacher,
-      {String birthdata = "0"}) async {
+      {String birthData = "0"}) async {
     int response = await _request(_postify("getPersonId", {
       "type": isTeacher ? 2 : 5,
       "sn": surname,
       "fn": forename,
-      "dob": birthdata
+      "dob": birthData
     }));
     return response == 0 ? null : IdProvider._(isTeacher ? 2 : 5, response);
   }
 
-  Future<_SearchMatches?> searchStudent(
+  Future<SearchMatches?> searchStudent(
       [String? forename,
       String? surname,
       int maxMatchCount = 5,
@@ -363,38 +365,48 @@ class Session {
       return null;
     }
 
-    var bestMatchesFinder = (String name, bool isSurname) {
-      var matches = name.bestMatch(students
-          .map((student) => isSurname ? student.surName : student.foreName)
-          .toList());
+    bool searchForForename = forename != null;
+
+    List<Student> findBestMatches(String name, bool isSurname) {
+      BestMatch matches = name.bestMatch(
+        students
+            .map((student) => isSurname ? student.surName : student.foreName)
+            .toList(),
+      );
+
       List<Rating> sortedMatches = matches.ratings
-        ..sort((Rating a, Rating b) => a.rating!.compareTo(b.rating!));
-      var bestMatches = sortedMatches.reversed
+        ..sort((a, b) => a.rating!.compareTo(b.rating!));
+
+      // Highest rating is index 0
+      List<Rating> bestMatches = sortedMatches.reversed
           .where((match) => match.rating! >= minMatchRating)
           .take(maxMatchCount)
           .toList();
-      var bestMatchesStrings = bestMatches.map((e) => e.target);
-      var asStudents = students
-          .where((elm) => bestMatchesStrings
-              .contains(isSurname ? elm.surName : elm.foreName))
+
+      Iterable<String?> bestMatchingNames = bestMatches.map((e) => e.target);
+
+      List<Student> bestMatchingStudents = students
+          .where((student) => bestMatchingNames
+              .contains(isSurname ? student.surName : student.foreName))
           .toList();
-      asStudents.sort((Student a, Student b) => bestMatches
-          .firstWhere((r) => r.target == (isSurname ? a.surName : a.foreName))
-          .rating!
-          .compareTo(bestMatches
-              .firstWhere(
-                  (r) => r.target == (isSurname ? b.surName : b.foreName))
-              .rating!));
-      return asStudents.reversed.toList();
-    };
 
-    var bestForenameMatches, bestSurnameMatches;
-    if (forename != null)
-      bestForenameMatches = bestMatchesFinder.call(forename, false);
-    if (surname != null)
-      bestSurnameMatches = bestMatchesFinder.call(surname, true);
+      // This method accounts for multiple fore/sur names in the bestMatches
+      double getMatchingStudentRating(Student std) => bestMatches
+          .firstWhere(
+              (r) => r.target == (isSurname ? std.surName : std.foreName))
+          .rating!;
 
-    return _SearchMatches._(bestForenameMatches, bestSurnameMatches);
+      bestMatchingStudents.sort((Student a, Student b) =>
+          getMatchingStudentRating(a).compareTo(getMatchingStudentRating(b)));
+
+      return bestMatchingStudents.reversed.toList();
+    }
+
+    if (searchForForename) {
+      return SearchMatches._(findBestMatches(forename, false), null);
+    } else {
+      return SearchMatches._(null, findBestMatches(surname!, true));
+    }
   }
 
   Future<List<Period>> getCancellations(IdProvider idProvider,
@@ -453,10 +465,7 @@ class Period {
 
   @override
   String toString() =>
-      "Period<id:$id, startTime:$startTime, endTime:$endTime, " +
-      "isCancelled:$isCancelled, klassenIds:$klassenIds, teacherIds:$teacherIds, " +
-      "subjectIds:$subjectIds, roomIds:$roomIds, activityType:$activityType, " +
-      "code:$activityType, type:$type, lessonText:$lessonText, statflags:$statflags>";
+      "Period<id:$id, startTime:$startTime, endTime:$endTime, isCancelled:$isCancelled, klassenIds:$klassenIds, teacherIds:$teacherIds, subjectIds:$subjectIds, roomIds:$roomIds, activityType:$activityType, code:$activityType, type:$type, lessonText:$lessonText, statflags:$statflags>";
 }
 
 class Subject {
@@ -469,19 +478,19 @@ class Subject {
   String toString() => "Subject<id:$id, name:$name, longName:$longName";
 }
 
-class Schoolyear {
+class SchoolYear {
   final int id;
-  final name;
+  final String name;
   final DateTime startDate, endDate;
 
-  Schoolyear._(this.id, this.name, this.startDate, this.endDate);
+  SchoolYear._(this.id, this.name, this.startDate, this.endDate);
 
   @override
   String toString() =>
-      "Schoolyear<id:$id, name:$name, startDate:$startDate, endDate:$startDate>";
+      "SchoolYear<id:$id, name:$name, startDate:$startDate, endDate:$startDate>";
 }
 
-class Timegrid {
+class TimeGrid {
   final List<List<DayTime>>? monday,
       tuesday,
       wednesday,
@@ -490,11 +499,11 @@ class Timegrid {
       saturday,
       sunday;
 
-  Timegrid._(this.monday, this.tuesday, this.thursday, this.wednesday,
+  TimeGrid._(this.monday, this.tuesday, this.thursday, this.wednesday,
       this.friday, this.saturday, this.sunday);
 
-  factory Timegrid._fromList(List<List<List<DayTime>>?> list) {
-    return Timegrid._(
+  factory TimeGrid._fromList(List<List<List<DayTime>>?> list) {
+    return TimeGrid._(
         list[1], list[2], list[3], list[4], list[5], list[6], list[0]);
   }
 
@@ -529,11 +538,11 @@ class Room {
 
 class Klasse {
   IdProvider id;
-  int schoolyearId;
+  int schoolYearId;
   String? name, longName, foreColor, backColor, did;
   List<IdProvider> teachers;
 
-  Klasse._(this.id, this.schoolyearId, this.name, this.longName, this.foreColor,
+  Klasse._(this.id, this.schoolYearId, this.name, this.longName, this.foreColor,
       this.backColor, this.teachers);
 
   @override
@@ -548,43 +557,43 @@ class DayTime {
 
   @override
   String toString() {
-    String _addLeadingZeroIfNeeded(int value) {
+    String addLeadingZeroIfNeeded(int value) {
       if (value < 10) return '0$value';
       return value.toString();
     }
 
-    final String hourLabel = _addLeadingZeroIfNeeded(hour);
-    final String minuteLabel = _addLeadingZeroIfNeeded(minute);
+    final String hourLabel = addLeadingZeroIfNeeded(hour);
+    final String minuteLabel = addLeadingZeroIfNeeded(minute);
 
     return '$DayTime($hourLabel:$minuteLabel)';
   }
 }
 
-class _SearchMatches {
+class SearchMatches {
   List<Student>? forenameMatches, surnameMatches;
 
-  _SearchMatches._(this.forenameMatches, this.surnameMatches);
+  SearchMatches._(this.forenameMatches, this.surnameMatches);
 
   @override
   String toString() =>
-      '_SearchMatches<forenameMatches: ${forenameMatches.toString()}\nsurnameMatches: ${surnameMatches.toString()}>';
+      '_SearchMatches<forenameMatches: $forenameMatches\nsurnameMatches: $surnameMatches>';
 }
 
-enum _IdProviderTypes { KLASSE, TEACHER, SUBJECT, ROOM, STUDENT }
+enum IdProviderTypes { KLASSE, TEACHER, SUBJECT, ROOM, STUDENT }
 
 class IdProvider {
-  final _IdProviderTypes type;
+  final IdProviderTypes type;
   final int id;
 
   IdProvider._internal(this.type, this.id);
 
-  factory IdProvider._withType(_IdProviderTypes type, int id) {
+  factory IdProvider._withType(IdProviderTypes type, int id) {
     return IdProvider._internal(type, id);
   }
 
   factory IdProvider._(int type, int id) {
     assert(0 < type && type < 6);
-    return IdProvider._withType(_IdProviderTypes.values[type - 1], id);
+    return IdProvider._withType(IdProviderTypes.values[type - 1], id);
   }
 
   /// Returns a custom IdProvider. USE WITH CAUTION.
@@ -592,7 +601,7 @@ class IdProvider {
   /// type: 1 = klasse, 2 = teacher, 3 = subject, 4 = room, 5 = student
   factory IdProvider.custom(int type, int id) {
     assert(0 < type && type < 6);
-    return IdProvider._withType(_IdProviderTypes.values[type - 1], id);
+    return IdProvider._withType(IdProviderTypes.values[type - 1], id);
   }
 
   @override
