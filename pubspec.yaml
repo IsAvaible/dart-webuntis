@@ -8,13 +8,13 @@ homepage: https://github.com/IsAvaible/dart-webuntis
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 environment:
-  sdk: '>=3.2.0-42.2.beta <4.0.0'
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-    
-  http: ^0.13.4
+
+  http: ^1.1.0
   string_similarity: ^2.0.0
 
 dev_dependencies:
