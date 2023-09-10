@@ -5,10 +5,12 @@ An asynchrous WebUntis API wrapper written in Dart.
 Attention: Each method must be properly awaited in an asynchronous fashion. This rather annoying circumstance is inherited by the usage of the http package, but should
 help to design fast & responsive UIs.
 
-Starting off, put [untis.dart](untis.dart) into the lib folder of your project and add these two packages to the dependencies of your pubspec.yaml file:
+Starting off, add this package to the dependencies of your pubspec.yaml file:
 ```yaml
-http: ^0.13.4
-string_similarity: ^2.0.0
+dart_webuntis:
+  git:
+    url: https://github.com/IsAvaible/dart-webuntis.git
+    ref: main
 ```
 
 The basic tool used to interact with the API is the Session object.
