@@ -9,7 +9,7 @@ Starting off, add this package to the dependencies of your pubspec.yaml file:
 ```yaml
 dart_webuntis:
   git:
-    url: git://github.com/IsAvaible/dart-webuntis.git
+    url: https://github.com/IsAvaible/dart-webuntis.git
     ref: main
 ```
 
