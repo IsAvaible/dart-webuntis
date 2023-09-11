@@ -185,7 +185,7 @@ class Session {
         var dayDict = rawTimeGrid.firstWhere((element) => (element["day"] == day));
         List<dynamic> dayData = dayDict["timeUnits"];
 
-        List.generate(
+        return List.generate(
             dayData.length,
             (timePeriod) => List.generate(2, (periodBorder) {
                   String border = List.from(["startTime", "endTime"])[periodBorder];
@@ -196,7 +196,6 @@ class Session {
       } else {
         return null;
       }
-      return null;
     }));
   }
 
