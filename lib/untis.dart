@@ -146,11 +146,11 @@ class Session {
         List.generate(
             period["kl"].length, (index) => IdProvider._withType(IdProviderTypes.KLASSE, period["kl"][index]["id"])),
         List.generate(
-            period["te"].length, (index) => IdProvider._withType(IdProviderTypes.KLASSE, period["te"][index]["id"])),
+            period["te"].length, (index) => IdProvider._withType(IdProviderTypes.TEACHER, period["te"][index]["id"])),
         List.generate(
-            period["su"].length, (index) => IdProvider._withType(IdProviderTypes.KLASSE, period["su"][index]["id"])),
+            period["su"].length, (index) => IdProvider._withType(IdProviderTypes.SUBJECT, period["su"][index]["id"])),
         List.generate(
-            period["ro"].length, (index) => IdProvider._withType(IdProviderTypes.KLASSE, period["ro"][index]["id"])),
+            period["ro"].length, (index) => IdProvider._withType(IdProviderTypes.ROOM, period["ro"][index]["id"])),
         period["activityType"],
         (period["code"] ?? "") == "cancelled",
         period["code"],
