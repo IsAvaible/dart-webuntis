@@ -499,6 +499,13 @@ class IdProvider {
 
   @override
   String toString() => "IdProvider<type:${type.toString()}, id:$id>";
+
+  bool operator ==(other) {
+    return (other is IdProvider && other.type == type && other.id == id);
+  }
+
+  int get hashCode => hashCode;
+
 }
 
 class _CacheEntry {
