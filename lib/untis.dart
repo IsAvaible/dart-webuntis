@@ -169,7 +169,7 @@ class Session {
   List<Subject> _parseSubjects(List<dynamic> rawSubjects) {
     return List.generate(rawSubjects.length, (index) {
       var subject = rawSubjects[index];
-      return Subject._(IdProvider._internal(IdProviderTypes.STUDENT, subject["id"]), subject["name"],
+      return Subject._(IdProvider._internal(IdProviderTypes.SUBJECT, subject["id"]), subject["name"],
           subject["longName"], subject["alternateName"]);
     });
   }
