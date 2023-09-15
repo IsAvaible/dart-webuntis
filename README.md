@@ -16,7 +16,7 @@ dart_webuntis:
 The basic tool used to interact with the API is the Session object.
 ```dart
 // .init(server, school, username, password, Optional: useragent)
-Session mySession = await Session.init("demo.server.com", "demo_school", "demo_user", "demo_pass")
+Session mySession = await Session.init("demo.server.com", "demo_school", "demo_user", "demo_pass");
 // The ID of the account which credentials you used should now be available over the .userId attribute
 var myId = mySession.userId!;
 // Alternatively you can also search for a student

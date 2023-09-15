@@ -146,11 +146,11 @@ class Session {
         List.generate(
             period["kl"].length, (index) => IdProvider._withType(IdProviderTypes.KLASSE, period["kl"][index]["id"])),
         List.generate(
-            period["te"].length, (index) => IdProvider._withType(IdProviderTypes.KLASSE, period["te"][index]["id"])),
+            period["te"].length, (index) => IdProvider._withType(IdProviderTypes.TEACHER, period["te"][index]["id"])),
         List.generate(
-            period["su"].length, (index) => IdProvider._withType(IdProviderTypes.KLASSE, period["su"][index]["id"])),
+            period["su"].length, (index) => IdProvider._withType(IdProviderTypes.SUBJECT, period["su"][index]["id"])),
         List.generate(
-            period["ro"].length, (index) => IdProvider._withType(IdProviderTypes.KLASSE, period["ro"][index]["id"])),
+            period["ro"].length, (index) => IdProvider._withType(IdProviderTypes.ROOM, period["ro"][index]["id"])),
         period["activityType"],
         (period["code"] ?? "") == "cancelled",
         period["code"],
@@ -169,7 +169,7 @@ class Session {
   List<Subject> _parseSubjects(List<dynamic> rawSubjects) {
     return List.generate(rawSubjects.length, (index) {
       var subject = rawSubjects[index];
-      return Subject._(IdProvider._internal(IdProviderTypes.STUDENT, subject["id"]), subject["name"],
+      return Subject._(IdProvider._internal(IdProviderTypes.SUBJECT, subject["id"]), subject["name"],
           subject["longName"], subject["alternateName"]);
     });
   }
@@ -499,6 +499,13 @@ class IdProvider {
 
   @override
   String toString() => "IdProvider<type:${type.toString()}, id:$id>";
+
+  bool operator ==(other) {
+    return (other is IdProvider && other.type == type && other.id == id);
+  }
+
+  int get hashCode => hashCode;
+
 }
 
 class _CacheEntry {
