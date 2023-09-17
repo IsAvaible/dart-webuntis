@@ -401,7 +401,7 @@ class TimeGrid {
   TimeGrid._(this.monday, this.tuesday, this.thursday, this.wednesday, this.friday, this.saturday, this.sunday);
 
   factory TimeGrid._fromList(List<List<List<DayTime>>?> list) {
-    return TimeGrid._(list[1], list[2], list[3], list[4], list[5], list[6], list[0]);
+    return TimeGrid._(list[2], list[3], list[4], list[5], list[6], list[1], list[0]);
   }
 
   asList() {
