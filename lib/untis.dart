@@ -34,51 +34,38 @@ class Session {
   int cacheLengthMaximum = 20;
   int cacheDisposeTime = 30;
 
-  Session._internal(
-      this.server, this.school, this.username, this._password, this.userAgent) {
+  Session._internal(this.server, this.school, this.username, this._password, this.userAgent) {
     final ioc = HttpClient();
-    ioc.badCertificateCallback =
-        (X509Certificate cert, String host, int port) => true;
+    ioc.badCertificateCallback = (X509Certificate cert, String host, int port) => true;
     _http = IOClient(ioc);
   }
 
-  static Future<Session> init(
-      String server, String school, String username, String password,
+  static Future<Session> init(String server, String school, String username, String password,
       {String userAgent = "Dart Untis API"}) async {
-    Session session =
-        Session._internal(server, school, username, password, userAgent);
+    Session session = Session._internal(server, school, username, password, userAgent);
     await session.login();
     return session;
   }
 
-  static Session initNoLogin(
-      String server, String school, String username, String password,
+  static Session initNoLogin(String server, String school, String username, String password,
       {String userAgent = "Dart Untis API"}) {
-    Session session =
-        Session._internal(server, school, username, password, userAgent);
+    Session session = Session._internal(server, school, username, password, userAgent);
     return session;
   }
 
-  Future<dynamic> _request(Map<String, Object> requestBody,
-      {bool useCache = false}) async {
+  Future<dynamic> _request(Map<String, Object> requestBody, {bool useCache = false}) async {
     var url = Uri.parse("https://$server/WebUntis/jsonrpc.do?school=$school");
     http.Response response;
     String requestBodyAsString = jsonEncode(requestBody);
 
     if (useCache && _cache.keys.contains(requestBodyAsString)) {
-      if (_cache[requestBodyAsString]!
-              .creationTime
-              .difference(DateTime.now())
-              .inMinutes >
-          cacheDisposeTime) {
+      if (_cache[requestBodyAsString]!.creationTime.difference(DateTime.now()).inMinutes > cacheDisposeTime) {
         _cache.remove(requestBodyAsString);
         return await _request(requestBody, useCache: useCache);
       }
       response = _cache[requestBodyAsString]!.value;
     } else {
-      response = await _http.post(url,
-          body: requestBodyAsString,
-          headers: {"Cookie": "JSESSIONID=$_sessionId"});
+      response = await _http.post(url, body: requestBodyAsString, headers: {"Cookie": "JSESSIONID=$_sessionId"});
     }
 
     _cache[requestBodyAsString] = _CacheEntry(DateTime.now(), response);
@@ -90,9 +77,7 @@ class Session {
 
     if (response.statusCode != 200 || responseBody.containsKey("error")) {
       int untisErrorCode = responseBody["error"]["code"];
-      String untisErrorText = untisErrorCode == -8520
-          ? "\nYou need to authenticate with .login() first."
-          : "";
+      String untisErrorText = untisErrorCode == -8520 ? "\nYou need to authenticate with .login() first." : "";
       throw HttpException(
           "An exception occurred while communicating with the WebUntis API: ${responseBody["error"]}$untisErrorText");
     } else {
@@ -102,26 +87,19 @@ class Session {
   }
 
   Map<String, Object> _postify(String method, Map<String, Object> parameters) {
-    var postBody = {
-      "id": "req-${_requestId += 1}",
-      "method": method,
-      "params": parameters,
-      "jsonrpc": "2.0"
-    };
+    var postBody = {"id": "req-${_requestId += 1}", "method": method, "params": parameters, "jsonrpc": "2.0"};
     return postBody;
   }
 
   Future<void> login() async {
-    var result = await _request(_postify("authenticate",
-        {"user": username, "password": _password, "client": userAgent}));
+    var result =
+        await _request(_postify("authenticate", {"user": username, "password": _password, "client": userAgent}));
     _sessionId = result["sessionId"] as String;
     if (result.containsKey("personId")) {
-      userId =
-          IdProvider._(result["personType"] as int, result["personId"] as int);
+      userId = IdProvider._(result["personType"] as int, result["personId"] as int);
     }
     if (result.containsKey("klasseId")) {
-      userKlasseId = IdProvider._withType(
-          IdProviderTypes.KLASSE, result["klasseId"] as int);
+      userKlasseId = IdProvider._withType(IdProviderTypes.KLASSE, result["klasseId"] as int);
     }
   }
 
@@ -134,16 +112,11 @@ class Session {
     if (startDate.compareTo(endDate) == 1) {
       throw Exception("startDate must be equal to or before the endDate.");
     }
-    convYearMonth(DateTime dateTime) =>
-        dateTime.toIso8601String().substring(0, 10).replaceAll("-", "");
+    convYearMonth(DateTime dateTime) => dateTime.toIso8601String().substring(0, 10).replaceAll("-", "");
 
     var rawTimetable = await _request(
-        _postify("getTimetable", {
-          "id": id,
-          "type": type,
-          "startDate": convYearMonth(startDate),
-          "endDate": convYearMonth(endDate)
-        }),
+        _postify("getTimetable",
+            {"id": id, "type": type, "startDate": convYearMonth(startDate), "endDate": convYearMonth(endDate)}),
         useCache: useCache);
 
     return _parseTimetable(rawTimetable);
@@ -165,32 +138,19 @@ class Session {
         "lstype",
         "lstext",
         "statflags"
-      ],
-          value: (key) => rawTimetable[index].containsKey(key)
-              ? rawTimetable[index][key]
-              : null);
+      ], value: (key) => rawTimetable[index].containsKey(key) ? rawTimetable[index][key] : null);
       return Period._(
         period["id"] as int,
-        DateTime.parse(
-            "${period["date"]} ${period["startTime"].toString().padLeft(4, "0")}"),
-        DateTime.parse(
-            "${period["date"]} ${period["endTime"].toString().padLeft(4, "0")}"),
+        DateTime.parse("${period["date"]} ${period["startTime"].toString().padLeft(4, "0")}"),
+        DateTime.parse("${period["date"]} ${period["endTime"].toString().padLeft(4, "0")}"),
         List.generate(
-            period["kl"].length,
-            (index) => IdProvider._withType(
-                IdProviderTypes.KLASSE, period["kl"][index]["id"])),
+            period["kl"].length, (index) => IdProvider._withType(IdProviderTypes.KLASSE, period["kl"][index]["id"])),
         List.generate(
-            period["te"].length,
-            (index) => IdProvider._withType(
-                IdProviderTypes.TEACHER, period["te"][index]["id"])),
+            period["te"].length, (index) => IdProvider._withType(IdProviderTypes.TEACHER, period["te"][index]["id"])),
         List.generate(
-            period["su"].length,
-            (index) => IdProvider._withType(
-                IdProviderTypes.SUBJECT, period["su"][index]["id"])),
+            period["su"].length, (index) => IdProvider._withType(IdProviderTypes.SUBJECT, period["su"][index]["id"])),
         List.generate(
-            period["ro"].length,
-            (index) => IdProvider._withType(
-                IdProviderTypes.ROOM, period["ro"][index]["id"])),
+            period["ro"].length, (index) => IdProvider._withType(IdProviderTypes.ROOM, period["ro"][index]["id"])),
         period["activityType"],
         (period["code"] ?? "") == "cancelled",
         period["code"],
@@ -202,44 +162,35 @@ class Session {
   }
 
   Future<List<Subject>> getSubjects({bool useCache = false}) async {
-    List<dynamic> rawSubjects =
-        await _request(_postify("getSubjects", {}), useCache: useCache);
+    List<dynamic> rawSubjects = await _request(_postify("getSubjects", {}), useCache: useCache);
     return _parseSubjects(rawSubjects);
   }
 
   List<Subject> _parseSubjects(List<dynamic> rawSubjects) {
     return List.generate(rawSubjects.length, (index) {
       var subject = rawSubjects[index];
-      return Subject._(
-          IdProvider._internal(IdProviderTypes.SUBJECT, subject["id"]),
-          subject["name"],
-          subject["longName"],
-          subject["alternateName"]);
+      return Subject._(IdProvider._internal(IdProviderTypes.SUBJECT, subject["id"]), subject["name"],
+          subject["longName"], subject["alternateName"]);
     });
   }
 
   Future<TimeGrid> getTimeGrid({bool useCache = true}) async {
-    List<dynamic> rawTimeGrid =
-        await _request(_postify("getTimegridUnits", {}), useCache: useCache);
+    List<dynamic> rawTimeGrid = await _request(_postify("getTimegridUnits", {}), useCache: useCache);
     return _parseTimeGrid(rawTimeGrid);
   }
 
   TimeGrid _parseTimeGrid(List<dynamic> rawTimeGrid) {
     return TimeGrid._fromList(List.generate(7, (day) {
       if (rawTimeGrid.map((e) => e["day"]).contains(day)) {
-        var dayDict =
-            rawTimeGrid.firstWhere((element) => (element["day"] == day));
+        var dayDict = rawTimeGrid.firstWhere((element) => (element["day"] == day));
         List<dynamic> dayData = dayDict["timeUnits"];
 
         return List.generate(
             dayData.length,
             (timePeriod) => List.generate(2, (periodBorder) {
-                  String border =
-                      List.from(["startTime", "endTime"])[periodBorder];
-                  String time =
-                      dayData[timePeriod][border].toString().padLeft(4, "0");
-                  String hour = time.substring(0, 2),
-                      minute = time.substring(2, 4);
+                  String border = List.from(["startTime", "endTime"])[periodBorder];
+                  String time = dayData[timePeriod][border].toString().padLeft(4, "0");
+                  String hour = time.substring(0, 2), minute = time.substring(2, 4);
                   return DayTime(int.parse(hour), int.parse(minute));
                 }));
       } else {
@@ -249,29 +200,22 @@ class Session {
   }
 
   Future<SchoolYear> getCurrentSchoolYear({bool useCache = true}) async {
-    Map<String, dynamic> rawSchoolYear =
-        await _request(_postify("getCurrentSchoolyear", {}));
+    Map<String, dynamic> rawSchoolYear = await _request(_postify("getCurrentSchoolyear", {}));
     return _parseSchoolYear(rawSchoolYear);
   }
 
   Future<List<SchoolYear>> getSchoolYears({bool useCache = true}) async {
-    List<dynamic> rawSchoolYears =
-        await _request(_postify("getSchoolyears", {}));
-    return List.generate(rawSchoolYears.length,
-        (year) => _parseSchoolYear(rawSchoolYears[year]));
+    List<dynamic> rawSchoolYears = await _request(_postify("getSchoolyears", {}));
+    return List.generate(rawSchoolYears.length, (year) => _parseSchoolYear(rawSchoolYears[year]));
   }
 
   SchoolYear _parseSchoolYear(Map rawSchoolYear) {
-    return SchoolYear._(
-        rawSchoolYear["id"],
-        rawSchoolYear["name"],
-        DateTime.parse(rawSchoolYear["startDate"].toString()),
-        DateTime.parse(rawSchoolYear["endDate"].toString()));
+    return SchoolYear._(rawSchoolYear["id"], rawSchoolYear["name"],
+        DateTime.parse(rawSchoolYear["startDate"].toString()), DateTime.parse(rawSchoolYear["endDate"].toString()));
   }
 
   Future<List<Student>> getStudents({bool useCache = true}) async {
-    List<dynamic> rawStudents =
-        await _request(_postify("getStudents", {}), useCache: useCache);
+    List<dynamic> rawStudents = await _request(_postify("getStudents", {}), useCache: useCache);
     return _parseStudents(rawStudents);
   }
 
@@ -290,8 +234,7 @@ class Session {
   }
 
   Future<List<Room>> getRooms({bool useCache = true}) async {
-    List<dynamic> rawRooms =
-        await _request(_postify("getRooms", {}), useCache: useCache);
+    List<dynamic> rawRooms = await _request(_postify("getRooms", {}), useCache: useCache);
     return _parseRooms(rawRooms);
   }
 
@@ -308,11 +251,9 @@ class Session {
     });
   }
 
-  Future<List<Klasse>> getKlassen(int schoolYearId,
-      {bool useCache = true}) async {
-    List<dynamic> rawKlassen = await _request(
-        _postify("getKlassen", {"schoolyearId": schoolYearId}),
-        useCache: useCache);
+  Future<List<Klasse>> getKlassen(int schoolYearId, {bool useCache = true}) async {
+    List<dynamic> rawKlassen =
+        await _request(_postify("getKlassen", {"schoolyearId": schoolYearId}), useCache: useCache);
     return _parseKlassen(rawKlassen, schoolYearId);
   }
 
@@ -327,30 +268,18 @@ class Session {
           klasse.containsKey("longName") ? klasse["longName"] : null,
           klasse.containsKey("foreColor") ? klasse["foreColor"] : null,
           klasse.containsKey("backColor") ? klasse["backColor"] : null,
-          List.generate(
-              teachers.length,
-              (i) => IdProvider._withType(
-                  IdProviderTypes.TEACHER, klasse[teachers[i]])));
+          List.generate(teachers.length, (i) => IdProvider._withType(IdProviderTypes.TEACHER, klasse[teachers[i]])));
     });
   }
 
-  Future<IdProvider?> searchPerson(
-      String forename, String surname, bool isTeacher,
-      {String birthData = "0"}) async {
-    int response = await _request(_postify("getPersonId", {
-      "type": isTeacher ? 2 : 5,
-      "sn": surname,
-      "fn": forename,
-      "dob": birthData
-    }));
+  Future<IdProvider?> searchPerson(String forename, String surname, bool isTeacher, {String birthData = "0"}) async {
+    int response = await _request(
+        _postify("getPersonId", {"type": isTeacher ? 2 : 5, "sn": surname, "fn": forename, "dob": birthData}));
     return response == 0 ? null : IdProvider._(isTeacher ? 2 : 5, response);
   }
 
   Future<SearchMatches?> searchStudent(
-      [String? forename,
-      String? surname,
-      int maxMatchCount = 5,
-      double minMatchRating = 0.4]) async {
+      [String? forename, String? surname, int maxMatchCount = 5, double minMatchRating = 0.4]) async {
     assert(0 <= minMatchRating && minMatchRating <= 1);
     assert(maxMatchCount > 0);
     List<Student> students;
@@ -368,35 +297,27 @@ class Session {
 
     List<Student> findBestMatches(String name, bool isSurname) {
       BestMatch matches = name.bestMatch(
-        students
-            .map((student) => isSurname ? student.surName : student.foreName)
-            .toList(),
+        students.map((student) => isSurname ? student.surName : student.foreName).toList(),
       );
 
-      List<Rating> sortedMatches = matches.ratings
-        ..sort((a, b) => a.rating!.compareTo(b.rating!));
+      List<Rating> sortedMatches = matches.ratings..sort((a, b) => a.rating!.compareTo(b.rating!));
 
       // Highest rating is index 0
-      List<Rating> bestMatches = sortedMatches.reversed
-          .where((match) => match.rating! >= minMatchRating)
-          .take(maxMatchCount)
-          .toList();
+      List<Rating> bestMatches =
+          sortedMatches.reversed.where((match) => match.rating! >= minMatchRating).take(maxMatchCount).toList();
 
       Iterable<String?> bestMatchingNames = bestMatches.map((e) => e.target);
 
       List<Student> bestMatchingStudents = students
-          .where((student) => bestMatchingNames
-              .contains(isSurname ? student.surName : student.foreName))
+          .where((student) => bestMatchingNames.contains(isSurname ? student.surName : student.foreName))
           .toList();
 
       // This method accounts for multiple fore/sur names in the bestMatches
-      double getMatchingStudentRating(Student std) => bestMatches
-          .firstWhere(
-              (r) => r.target == (isSurname ? std.surName : std.foreName))
-          .rating!;
+      double getMatchingStudentRating(Student std) =>
+          bestMatches.firstWhere((r) => r.target == (isSurname ? std.surName : std.foreName)).rating!;
 
-      bestMatchingStudents.sort((Student a, Student b) =>
-          getMatchingStudentRating(a).compareTo(getMatchingStudentRating(b)));
+      bestMatchingStudents
+          .sort((Student a, Student b) => getMatchingStudentRating(a).compareTo(getMatchingStudentRating(b)));
 
       return bestMatchingStudents.reversed.toList();
     }
@@ -410,8 +331,7 @@ class Session {
 
   Future<List<Period>> getCancellations(IdProvider idProvider,
       {DateTime? startDate, DateTime? endDate, bool useCache = false}) async {
-    List<Period> timetable = await getTimetable(idProvider,
-        startDate: startDate, endDate: endDate, useCache: useCache);
+    List<Period> timetable = await getTimetable(idProvider, startDate: startDate, endDate: endDate, useCache: useCache);
     timetable.removeWhere((period) => period.isCancelled != true);
     return timetable;
   }
@@ -420,8 +340,7 @@ class Session {
   ///
   /// For valid values for the [methodeName] and possible [parameters]
   /// visit the official documentation https://untis-sr.ch/wp-content/uploads/2019/11/2018-09-20-WebUntis_JSON_RPC_API.pdf
-  Future<dynamic> customRequest(
-      String methodeName, Map<String, Object> parameters) async {
+  Future<dynamic> customRequest(String methodeName, Map<String, Object> parameters) async {
     return await _request(_postify(methodeName, parameters));
   }
 
@@ -447,20 +366,8 @@ class Period {
   final bool isCancelled;
   final String? activityType, code, type, lessonText, statflags;
 
-  Period._(
-      this.id,
-      this.startTime,
-      this.endTime,
-      this.klassenIds,
-      this.teacherIds,
-      this.subjectIds,
-      this.roomIds,
-      this.activityType,
-      this.isCancelled,
-      this.code,
-      this.type,
-      this.lessonText,
-      this.statflags);
+  Period._(this.id, this.startTime, this.endTime, this.klassenIds, this.teacherIds, this.subjectIds, this.roomIds,
+      this.activityType, this.isCancelled, this.code, this.type, this.lessonText, this.statflags);
 
   @override
   String toString() =>
@@ -485,30 +392,20 @@ class SchoolYear {
   SchoolYear._(this.id, this.name, this.startDate, this.endDate);
 
   @override
-  String toString() =>
-      "SchoolYear<id:$id, name:$name, startDate:$startDate, endDate:$startDate>";
+  String toString() => "SchoolYear<id:$id, name:$name, startDate:$startDate, endDate:$startDate>";
 }
 
 class TimeGrid {
-  final List<List<DayTime>>? monday,
-      tuesday,
-      wednesday,
-      thursday,
-      friday,
-      saturday,
-      sunday;
+  final List<List<DayTime>>? monday, tuesday, wednesday, thursday, friday, saturday, sunday;
 
-  TimeGrid._(this.monday, this.tuesday, this.thursday, this.wednesday,
-      this.friday, this.saturday, this.sunday);
+  TimeGrid._(this.monday, this.tuesday, this.thursday, this.wednesday, this.friday, this.saturday, this.sunday);
 
   factory TimeGrid._fromList(List<List<List<DayTime>>?> list) {
-    return TimeGrid._(
-        list[2], list[3], list[4], list[5], list[6], list[1], list[0]);
+    return TimeGrid._(list[1], list[2], list[3], list[4], list[5], list[6], list[0]);
   }
 
   asList() {
-    return List.from(
-        [monday, tuesday, wednesday, thursday, friday, saturday, sunday]);
+    return List.from([monday, tuesday, wednesday, thursday, friday, saturday, sunday]);
   }
 }
 
@@ -516,8 +413,7 @@ class Student {
   IdProvider id;
   String? key, untisName, foreName, surName, gender;
 
-  Student._(this.id, this.key, this.untisName, this.foreName, this.surName,
-      this.gender);
+  Student._(this.id, this.key, this.untisName, this.foreName, this.surName, this.gender);
 
   @override
   String toString() =>
@@ -541,8 +437,7 @@ class Klasse {
   String? name, longName, foreColor, backColor, did;
   List<IdProvider> teachers;
 
-  Klasse._(this.id, this.schoolYearId, this.name, this.longName, this.foreColor,
-      this.backColor, this.teachers);
+  Klasse._(this.id, this.schoolYearId, this.name, this.longName, this.foreColor, this.backColor, this.teachers);
 
   @override
   String toString() =>
@@ -574,8 +469,7 @@ class SearchMatches {
   SearchMatches._(this.forenameMatches, this.surnameMatches);
 
   @override
-  String toString() =>
-      '_SearchMatches<forenameMatches: $forenameMatches\nsurnameMatches: $surnameMatches>';
+  String toString() => '_SearchMatches<forenameMatches: $forenameMatches\nsurnameMatches: $surnameMatches>';
 }
 
 enum IdProviderTypes { KLASSE, TEACHER, SUBJECT, ROOM, STUDENT }
@@ -611,6 +505,7 @@ class IdProvider {
   }
 
   int get hashCode => hashCode;
+
 }
 
 class _CacheEntry {
