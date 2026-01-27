@@ -1,9 +1,18 @@
 # dart-webuntis
-An asynchrous WebUntis API wrapper written in Dart.
 
-# Usage
-Attention: Each method must be properly awaited in an asynchronous fashion. This rather annoying circumstance is inherited by the usage of the http package, but should
-help to design fast & responsive UIs.
+A lightweight, asynchronous Dart wrapper for the WebUntis JSON-RPC API.
+
+This package provides a simple interface to interact with WebUntis, allowing you to easily authenticate, fetch timetables and check cancellations.
+
+## Features
+
+* **Asynchronous:** Built on top of `http` for non-blocking UI integration.
+* **Session Management:** Easy login/logout and session persistence.
+* **Built-in Caching:** Automatic caching for specific requests (e.g., student lists) to reduce API load.
+* **Type Safety:** Typed objects for Periods, TimeGrids, and Student data.
+* **Custom Requests:** Fallback method to call any WebUntis API method not yet explicitly implemented.
+
+## Installation
 
 Starting off, add this package to the dependencies of your pubspec.yaml file:
 ```yaml
@@ -12,6 +21,8 @@ dart_webuntis:
     url: https://github.com/IsAvaible/dart-webuntis.git
     ref: main
 ```
+
+## Usage
 
 The basic tool used to interact with the API is the Session object.
 ```dart
@@ -56,7 +67,7 @@ var teacherIds = teachers.map((teacher) => IdProvider.custom(2, teacher["id"]))
 ```
 
 
-# Disclaimer
+## Disclaimer
 Please be aware that this wrapper is extremely bare bones, as I only implemented the methods that I think will be useful in app development.
 This is in no way a sophisticated approach of properly wrapping the clunky HTTP API provided by WebUntis, but it should do the job.
 If you feel inspired to contribute to this project, please do so, as it may help other developers facing the same limitations! 
